@@ -590,7 +590,7 @@ class SoftArbitraryPointSource:
         self.x, self.y, self.z = grid._handle_tuple((x, y, z))
 
         if self.name is not None:
-            detector_name += "_I"
+            detector_name = self.name + "_I"
         else:
             detector_name = None
 
