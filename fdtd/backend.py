@@ -178,6 +178,8 @@ class NumpyBackend(Backend):
 
     divide = staticmethod(numpy.divide)
 
+    cross = staticmethod(numpy.cross)
+
     # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     # beware to future people:
     # because this line *redefines numpy*,
@@ -302,6 +304,8 @@ if TORCH_AVAILABLE:
 
         divide = staticmethod(torch.div)
 
+        cross = staticmethod(torch.linalg.cross)
+
         exp = staticmethod(torch.exp)
         # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
         # The same warning applies here.
@@ -344,7 +348,7 @@ if TORCH_AVAILABLE:
                     return arr.cpu().numpy()
                 else:
                     return numpy.asarray(arr)
-
+                    
             def linspace(self, start, stop, num=50, endpoint=True):
                 """convert a linearly spaced interval of values"""
                 delta = (stop - start) / float(num - float(endpoint))
