@@ -95,6 +95,7 @@ class Grid:
         permeability: float = 1.0,
         courant_number: float = None,
         plasma: bool = False,
+        use_damping: bool = False
     ):
         """
         Args:
@@ -117,7 +118,13 @@ class Grid:
         self.D = int(self.Nx > 1) + int(self.Ny > 1) + int(self.Nz > 1)
         
         self.plasma = plasma
-
+        self.__use_damping = use_damping
+        
+        self.damping_factor=0
+        
+        if use_damping is True:
+            self.damping_factor=1e-6
+        
         # courant number of the simulation (optimal value)
         max_courant_number = float(self.D) ** (-0.5)
         if courant_number is None:
@@ -138,7 +145,7 @@ class Grid:
         self.E = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
         self.H = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
         if plasma is True:
-            self.omega = bd.zeros((self.Nx, self.Ny, self.Nz, 1))
+            self.omega = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
             self.OMEGA = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
             self.J = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
 	
@@ -263,6 +270,12 @@ class Grid:
                 simulation
 
         """
+        if self.plasma is True:
+            print("Courant Number ",self.courant_number)
+            self.courant_number=min(self.courant_number,.02/(bd.max(self.OMEGA**2).item()**.5+1e-9))
+            self.courant_number=min(self.courant_number,.2/(bd.max(self.omega).item()+1e-9))
+            print("New Courant Number ",self.courant_number)
+            self.time_step = self.courant_number * self.grid_spacing / const.c
         if isinstance(total_time, float):
             total_time /= self.time_step
         time = range(0, int(total_time), 1)
@@ -280,8 +293,11 @@ class Grid:
         self.time_steps_passed += 1
         
     def update_J(self):
-        
-        self.J += self.courant_number * ( self.omega**2 * self.E  - bd.cross( self.OMEGA , self.J ) )
+        if self.__use_damping is True:
+            self.damping_factor=max(bd.max(self.omega).item()*1e-6,1e-6)
+            self.J += self.courant_number * ( self.omega**2 * self.E - self.damping_factor * self.J - bd.cross( self.OMEGA , self.J ) )
+        else:
+            self.J += self.courant_number * ( self.omega**2 * self.E - bd.cross( self.OMEGA , self.J ) )
 
     def update_E(self):
         """update the electric field by using the curl of the magnetic field"""
