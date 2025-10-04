@@ -94,6 +94,7 @@ class Grid:
         permittivity: float = 1.0,
         permeability: float = 1.0,
         courant_number: float = None,
+        plasma: bool = False,
     ):
         """
         Args:
@@ -114,6 +115,8 @@ class Grid:
 
         # dimension of the simulation:
         self.D = int(self.Nx > 1) + int(self.Ny > 1) + int(self.Nz > 1)
+        
+        self.plasma = plasma
 
         # courant number of the simulation (optimal value)
         max_courant_number = float(self.D) ** (-0.5)
@@ -134,7 +137,11 @@ class Grid:
         # save electric and magnetic field
         self.E = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
         self.H = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
-
+        if plasma is True:
+            self.omega = bd.zeros((self.Nx, self.Ny, self.Nz, 1))
+            self.OMEGA = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
+            self.J = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
+	
         # save the inverse of the relative permittiviy and the relative permeability
         # these tensors can be anisotropic!
 
@@ -271,6 +278,10 @@ class Grid:
         self.update_E()
         self.update_H()
         self.time_steps_passed += 1
+        
+    def update_J(self):
+        
+        self.J += self.courant_number * ( self.omega**2 * self.E  - bd.cross( self.OMEGA , self.J ) )
 
     def update_E(self):
         """update the electric field by using the curl of the magnetic field"""
@@ -280,7 +291,11 @@ class Grid:
             boundary.update_phi_E()
 
         curl = curl_H(self.H)
-        self.E += self.courant_number * self.inverse_permittivity * curl
+        if self.plasma is True :
+            self.update_J()
+            self.E += self.courant_number * self.inverse_permittivity * ( curl - self.J )
+        else:
+            self.E += self.courant_number * self.inverse_permittivity * curl
 
         # update objects
         for obj in self.objects:
