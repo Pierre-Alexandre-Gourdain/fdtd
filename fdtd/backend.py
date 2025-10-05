@@ -109,6 +109,9 @@ class NumpyBackend(Backend):
     exp = staticmethod(numpy.exp)
     """ exponential of all elements in array """
 
+    log = staticmethod(numpy.log)
+    """ logarithm of all elements in array """
+
     sin = staticmethod(numpy.sin)
     """ sine of all elements in array """
 
@@ -227,6 +230,9 @@ if TORCH_AVAILABLE:
 
         exp = staticmethod(torch.exp)
         """ exponential of all elements in array """
+
+        log = staticmethod(torch.log)
+        """ logarithm of all elements in array """
 
         sin = staticmethod(torch.sin)
         """ sine of all elements in array """

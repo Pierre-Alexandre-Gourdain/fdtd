@@ -270,12 +270,13 @@ class Grid:
                 simulation
 
         """
-        if self.plasma is True:
-            print("Courant Number ",self.courant_number)
-            self.courant_number=min(self.courant_number,.02/(bd.max(self.OMEGA**2).item()**.5+1e-9))
-            self.courant_number=min(self.courant_number,.2/(bd.max(self.omega).item()+1e-9))
-            print("New Courant Number ",self.courant_number)
-            self.time_step = self.courant_number * self.grid_spacing / const.c
+#        if self.plasma is True:
+#            print("Courant Number ",self.courant_number)
+#            old_courant=self.courant_number
+#            self.courant_number=min(self.courant_number,.05/(bd.max(self.OMEGA**2).item()**.5+1e-9))
+#            self.courant_number=min(self.courant_number,.1/(bd.max(self.omega).item()+1e-9))
+#            print("New Courant Number ",self.courant_number)
+#            self.time_step *= self.courant_number / old_courant
         if isinstance(total_time, float):
             total_time /= self.time_step
         time = range(0, int(total_time), 1)
@@ -294,10 +295,10 @@ class Grid:
         
     def update_J(self):
         if self.__use_damping is True:
-            self.damping_factor=max(bd.max(self.omega).item()*1e-6,1e-6)
-            self.J += self.courant_number * ( self.omega**2 * self.E - self.damping_factor * self.J - bd.cross( self.OMEGA , self.J ) )
+#            self.damping_factor=max(bd.max(self.omega).item()*1e-4,1e-6)
+            self.J += self.time_step * ( const.eps0 * self.omega**2 * self.E - self.damping_factor * self.J - bd.cross( self.OMEGA , self.J , axis = -1 ) )
         else:
-            self.J += self.courant_number * ( self.omega**2 * self.E - bd.cross( self.OMEGA , self.J ) )
+            self.J += self.time_step * ( const.eps0 * self.omega**2 * self.E - bd.cross( self.OMEGA , self.J , axis = -1 ) )
 
     def update_E(self):
         """update the electric field by using the curl of the magnetic field"""
