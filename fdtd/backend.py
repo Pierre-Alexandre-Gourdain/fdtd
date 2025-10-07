@@ -310,7 +310,7 @@ if TORCH_AVAILABLE:
 
         divide = staticmethod(torch.div)
 
-        cross = staticmethod(torch.linalg.cross)
+        cross = staticmethod(torch.cross)
 
         exp = staticmethod(torch.exp)
         # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
