@@ -106,6 +106,9 @@ class NumpyBackend(Backend):
     # methods
     asarray = _replace_float(numpy.asarray)
 
+    sqrt = staticmethod(numpy.sqrt)
+    """ squareroot of all elements in array """
+
     exp = staticmethod(numpy.exp)
     """ exponential of all elements in array """
 
@@ -177,8 +180,6 @@ class NumpyBackend(Backend):
 
     fft = staticmethod(numpy.fft.fft)
 
-    exp = staticmethod(numpy.exp)
-
     divide = staticmethod(numpy.divide)
 
     cross = staticmethod(numpy.cross)
@@ -227,6 +228,9 @@ if TORCH_AVAILABLE:
         # methods
         asarray = staticmethod(torch.as_tensor)
         """ create an array """
+
+        sqrt = staticmethod(torch.sqrt)
+        """ squareroot of all elements in array """
 
         exp = staticmethod(torch.exp)
         """ exponential of all elements in array """
@@ -310,9 +314,8 @@ if TORCH_AVAILABLE:
 
         divide = staticmethod(torch.div)
 
-        cross = staticmethod(torch.cross)
+        cross = staticmethod(torch.linalg.cross)
 
-        exp = staticmethod(torch.exp)
         # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
         # The same warning applies here.
         # <3 <3 <3 <3

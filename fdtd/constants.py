@@ -23,7 +23,7 @@ eps0: float = 1.0 / (mu0 * c ** 2)
 eta0: float = mu0 * c
 """ free space impedance """
 
-q_e: float = 1.60217663e-19
+q_e: float = -1.60217663e-19
 """ elementary charge """
 
 m_e: float = 9.1093837e-31

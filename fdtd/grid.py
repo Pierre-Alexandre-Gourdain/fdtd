@@ -95,7 +95,7 @@ class Grid:
         permeability: float = 1.0,
         courant_number: float = None,
         plasma: bool = False,
-        use_damping: bool = False
+        use_p_e: bool = False,
     ):
         """
         Args:
@@ -118,12 +118,10 @@ class Grid:
         self.D = int(self.Nx > 1) + int(self.Ny > 1) + int(self.Nz > 1)
         
         self.plasma = plasma
-        self.__use_damping = use_damping
         
-        self.damping_factor=0
+        self.__use_p_e = use_p_e
         
-        if use_damping is True:
-            self.damping_factor=1e-6
+        self.__compute_once = True
         
         # courant number of the simulation (optimal value)
         max_courant_number = float(self.D) ** (-0.5)
@@ -144,10 +142,22 @@ class Grid:
         # save electric and magnetic field
         self.E = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
         self.H = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
+        
         if plasma is True:
+            self.m_e = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
+            self.T_e = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
+            self.n_e = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
+            self.B_T = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
             self.omega = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
             self.OMEGA = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
-            self.J = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
+            self.nu = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
+            if self.__use_p_e is True:
+                self.p_e = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
+                self.theta = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
+                self.axis = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
+            else:
+                self.J = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
+
 	
         # save the inverse of the relative permittiviy and the relative permeability
         # these tensors can be anisotropic!
@@ -270,13 +280,6 @@ class Grid:
                 simulation
 
         """
-#        if self.plasma is True:
-#            print("Courant Number ",self.courant_number)
-#            old_courant=self.courant_number
-#            self.courant_number=min(self.courant_number,.05/(bd.max(self.OMEGA**2).item()**.5+1e-9))
-#            self.courant_number=min(self.courant_number,.1/(bd.max(self.omega).item()+1e-9))
-#            print("New Courant Number ",self.courant_number)
-#            self.time_step *= self.courant_number / old_courant
         if isinstance(total_time, float):
             total_time /= self.time_step
         time = range(0, int(total_time), 1)
@@ -294,11 +297,52 @@ class Grid:
         self.time_steps_passed += 1
         
     def update_J(self):
-        if self.__use_damping is True:
-#            self.damping_factor=max(bd.max(self.omega).item()*1e-4,1e-6)
-            self.J += self.time_step * ( const.eps0 * self.omega**2 * self.E - self.damping_factor * self.J - bd.cross( self.OMEGA , self.J , axis = -1 ) )
-        else:
-            self.J += self.time_step * ( const.eps0 * self.omega**2 * self.E - bd.cross( self.OMEGA , self.J , axis = -1 ) )
+        dt = self.time_step
+        if self.__compute_once is True:
+            self.m_e = const.m_e * bd.sqrt(1 + 5 * abs(const.q_e) * self.T_e / (const.m_e * const.c ** 2) )
+            self.OMEGA = const.q_e * self.B_T / self.m_e
+            self.omega = bd.sqrt( const.q_e **2 * self.n_e / (const.eps0 * self.m_e) )
+            self.theta = bd.sqrt((self.OMEGA ** 2).sum(axis=-1, keepdims=True)) * dt 
+            self.axis = self.OMEGA / self.theta * dt # to compute unit vector is OMEGA/|OMEGA| and theta is |OMEGA|dt
+            self.__compute_once = False
+        if self.__use_p_e is False:
+            exp_fac = bd.exp(-self.nu * dt  / 2)
+            self.J *= exp_fac
+            self.J += 0.5 * dt * const.eps0 * self.omega**2 * self.E
+            
+            cos_t = bd.cos(self.theta)
+            sin_t = bd.sin(self.theta)
+            axis_dot_J = (self.axis * self.J).sum(axis=-1, keepdims=True)
+            cross = bd.cross(self.axis, self.J, axis = -1)
+            
+            self.J = self.J * cos_t + cross * sin_t + self.axis * axis_dot_J * (1 - cos_t)
+            
+            self.J += 0.5 * dt * const.eps0 * self.omega**2 * self.E
+            self.J *= exp_fac
+        else:         
+            exp_fac = bd.exp(-self.nu * dt  / 2)
+
+            # Half damping
+            self.p_e *= exp_fac
+
+            # Half electric kick
+            self.p_e += 0.5 * const.q_e * self.E * dt
+            
+            #Compute Rodrigues rotation
+            cos_t = bd.cos(self.theta)
+            sin_t = bd.sin(self.theta)
+            axis_dot_p_e = (self.axis * self.p_e).sum(axis=-1, keepdims=True)
+            cross = bd.cross(self.axis, self.p_e, axis = -1)
+            
+            self.p_e = self.p_e * cos_t + cross * sin_t + self.axis * axis_dot_p_e * (1 - cos_t)
+
+            # Half electric kick
+            self.p_e += 0.5 * const.q_e * self.E * dt
+
+            # Half damping
+            self.p_e *= exp_fac
+        
+            self.J= const.q_e * self.n_e * self.p_e / self.m_e
 
     def update_E(self):
         """update the electric field by using the curl of the magnetic field"""
