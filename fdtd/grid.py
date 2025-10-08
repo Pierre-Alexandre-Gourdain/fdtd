@@ -302,7 +302,7 @@ class Grid:
             self.m_e = const.m_e * bd.sqrt(1 + 5 * abs(const.q_e) * self.T_e / (const.m_e * const.c ** 2) )
             self.OMEGA = const.q_e * self.B_T / self.m_e
             self.omega = bd.sqrt( const.q_e **2 * self.n_e / (const.eps0 * self.m_e) )
-            self.theta = bd.sqrt((self.OMEGA ** 2).sum(axis=-1, keepdims=True)) * dt 
+            self.theta = (bd.sqrt((self.OMEGA ** 2).sum(axis=-1, keepdims=True)) + 1e-15) * dt 
             self.axis = self.OMEGA / self.theta * dt # to compute unit vector is OMEGA/|OMEGA| and theta is |OMEGA|dt
             self.__compute_once = False
         if self.__use_p_e is False:
