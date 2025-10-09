@@ -94,6 +94,7 @@ class Grid:
         permittivity: float = 1.0,
         permeability: float = 1.0,
         courant_number: float = None,
+        frequency:float = 0,
         plasma: bool = False,
         use_p_e: bool = False,
     ):
@@ -122,6 +123,8 @@ class Grid:
         self.__use_p_e = use_p_e
         
         self.__compute_once = True
+        
+        self.frequency=frequency
         
         # courant number of the simulation (optimal value)
         max_courant_number = float(self.D) ** (-0.5)
@@ -305,44 +308,50 @@ class Grid:
             self.theta = (bd.sqrt((self.OMEGA ** 2).sum(axis=-1, keepdims=True)) + 1e-15) * dt 
             self.axis = self.OMEGA / self.theta * dt # to compute unit vector is OMEGA/|OMEGA| and theta is |OMEGA|dt
             self.__compute_once = False
-        if self.__use_p_e is False:
-            exp_fac = bd.exp(-self.nu * dt  / 2)
-            self.J *= exp_fac
-            self.J += 0.5 * dt * const.eps0 * self.omega**2 * self.E
-            
-            cos_t = bd.cos(self.theta)
-            sin_t = bd.sin(self.theta)
-            axis_dot_J = (self.axis * self.J).sum(axis=-1, keepdims=True)
-            cross = bd.cross(self.axis, self.J, axis = -1)
-            
-            self.J = self.J * cos_t + cross * sin_t + self.axis * axis_dot_J * (1 - cos_t)
-            
-            self.J += 0.5 * dt * const.eps0 * self.omega**2 * self.E
-            self.J *= exp_fac
-        else:         
-            exp_fac = bd.exp(-self.nu * dt  / 2)
+            if self.frequency > 0:
+                self.permittivity=1 - (self.omega / (2*3.1416*self.frequency))**2 
+                self.inverse_permittivity = 1./self.permittivity
+                print(bd.max(self.permittivity).item())
+                print(bd.min(self.permittivity).item())
+        if self.frequency is 0:
+            if self.__use_p_e is False:
+                exp_fac = bd.exp(-self.nu * dt  / 2)
+                self.J *= exp_fac
+                self.J += 0.5 * dt * const.eps0 * self.omega**2 * self.E
+                
+                cos_t = bd.cos(self.theta)
+                sin_t = bd.sin(self.theta)
+                axis_dot_J = (self.axis * self.J).sum(axis=-1, keepdims=True)
+                cross = bd.cross(self.axis, self.J, axis = -1)
+                
+                self.J = self.J * cos_t + cross * sin_t + self.axis * axis_dot_J * (1 - cos_t)
+                
+                self.J += 0.5 * dt * const.eps0 * self.omega**2 * self.E
+                self.J *= exp_fac
+            else:         
+                exp_fac = bd.exp(-self.nu * dt  / 2)
 
-            # Half damping
-            self.p_e *= exp_fac
+                # Half damping
+                self.p_e *= exp_fac
 
-            # Half electric kick
-            self.p_e += 0.5 * const.q_e * self.E * dt
+                # Half electric kick
+                self.p_e += 0.5 * const.q_e * self.E * dt
+                
+                #Compute Rodrigues rotation
+                cos_t = bd.cos(self.theta)
+                sin_t = bd.sin(self.theta)
+                axis_dot_p_e = (self.axis * self.p_e).sum(axis=-1, keepdims=True)
+                cross = bd.cross(self.axis, self.p_e, axis = -1)
+                
+                self.p_e = self.p_e * cos_t + cross * sin_t + self.axis * axis_dot_p_e * (1 - cos_t)
+
+                # Half electric kick
+                self.p_e += 0.5 * const.q_e * self.E * dt
+
+                # Half damping
+                self.p_e *= exp_fac
             
-            #Compute Rodrigues rotation
-            cos_t = bd.cos(self.theta)
-            sin_t = bd.sin(self.theta)
-            axis_dot_p_e = (self.axis * self.p_e).sum(axis=-1, keepdims=True)
-            cross = bd.cross(self.axis, self.p_e, axis = -1)
-            
-            self.p_e = self.p_e * cos_t + cross * sin_t + self.axis * axis_dot_p_e * (1 - cos_t)
-
-            # Half electric kick
-            self.p_e += 0.5 * const.q_e * self.E * dt
-
-            # Half damping
-            self.p_e *= exp_fac
-        
-            self.J= const.q_e * self.n_e * self.p_e / self.m_e
+                self.J= const.q_e * self.n_e * self.p_e / self.m_e
 
     def update_E(self):
         """update the electric field by using the curl of the magnetic field"""

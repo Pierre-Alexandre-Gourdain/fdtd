@@ -12,7 +12,8 @@ import os
 import matplotlib.pyplot as plt
 import matplotlib.patches as ptc
 from matplotlib.colors import LogNorm
-
+import matplotlib.ticker as mticker
+import numpy as np
 # 3rd party
 from tqdm import tqdm
 from numpy import log10, where
@@ -37,6 +38,7 @@ def visualize(
     srccolor="C0",
     detcolor="C2",
     norm="linear",
+    scale:int=1,
     animate=False,  # True to see frame by frame states of grid while running simulation
     index=None,  # index for each frame of animation (visualize fn runs in a loop, loop variable is passed as index)
     save=False,  # True to save frames (requires parameters index, folder)
@@ -64,6 +66,7 @@ def visualize(
         folder: path to folder to save frames
         style: Matplotlib style sheet to use for plotting. e.g. "https://raw.githubusercontent.com/dracula/matplotlib/master/dracula.mplstyle".
     """
+    fig, ax = plt.subplots(figsize=(8*scale, 3*scale))
     if style is not None:
         plt.style.use(style)
     if norm not in ("linear", "lin", "log"):
@@ -314,12 +317,19 @@ def visualize(
     if norm == "log":
         cmap_norm = LogNorm(vmin=1e-4, vmax=grid_energy.max() + 1e-4)
     plt.imshow(
-        abs(bd.numpy(grid_energy)), cmap=cmap, interpolation="sinc", norm=cmap_norm
+        abs(bd.numpy(grid_energy)), cmap=cmap, origin = 'lower', interpolation="sinc", norm=cmap_norm
     )
+    # X-axis
+    ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda val, pos: f"{val*grid.grid_spacing:.3f}"))
 
+    # Y-axis
+    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda val, pos: f"{(Nx-val-1)*grid.grid_spacing:.3f}"))
+
+    ax.set_xlabel("Distance (m)")
+    ax.set_ylabel("Distance (m)")
+    
+    
     # finalize the plot
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
     plt.ylim(Nx, -1)
     plt.xlim(-1, Ny)
     plt.figlegend()
@@ -333,7 +343,7 @@ def visualize(
     if show:
         plt.show()
 
-    return plt.gcf()  # return figure for gradio support
+    # return plt.gcf()  # return figure for gradio support
 
 
 def dB_map_2D(
