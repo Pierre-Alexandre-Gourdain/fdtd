@@ -13,6 +13,7 @@ from os import path, makedirs, chdir, remove
 from subprocess import check_call, CalledProcessError
 from glob import glob
 from datetime import datetime
+from math import exp as exp
 
 # 3rd party
 from tqdm import tqdm
@@ -49,6 +50,35 @@ def curl_E(E: Tensorlike) -> Tensorlike:
     curl[:, :-1, :, 2] -= E[:, 1:, :, 0] - E[:, :-1, :, 0]
 
     return curl
+
+def average_E(E: Tensorlike) -> Tensorlike:
+    """Transforms an E-type field into an H-type field by performing a curl
+    operation
+
+    Args:
+        E: Electric field to take the curl of (E-type field located on the
+           edges of the grid cell [integer gridpoints])
+
+    Returns:
+        The curl of E (H-type field located on the faces of the grid [half-integer grid points])
+    """
+
+    # E: shape (Nx, Ny, Nz, 3)
+    Eave = bd.zeros(E.shape,dtype=E.dtype)
+
+    # Ex component: average neighbors along x (axis 0)
+    Eave[1:, :, :, 0] = 0.5 * (E[1:, :, :, 0] + E[:-1, :, :, 0])
+    Eave[0, :, :, 0]  = E[0, :, :, 0]   # or apply BC / extrapolate
+
+    # Ey component: average neighbors along y (axis 1)
+    Eave[:, 1:, :, 1] = 0.5 * (E[:, 1:, :, 1] + E[:, :-1, :, 1])
+    Eave[:, 0, :, 1]  = E[:, 0, :, 1]
+
+    # Ez component: average neighbors along z (axis 2)
+    Eave[:, :, 1:, 2] = 0.5 * (E[:, :, 1:, 2] + E[:, :, :-1, 2])
+    Eave[:, :, 0, 2]  = E[:, :, 0, 2]
+    
+    return Eave
 
 
 def curl_H(H: Tensorlike) -> Tensorlike:
@@ -126,6 +156,8 @@ class Grid:
         
         self.frequency=frequency
         
+        self.nu:float = 0
+        
         # courant number of the simulation (optimal value)
         max_courant_number = float(self.D) ** (-0.5)
         if courant_number is None:
@@ -153,7 +185,6 @@ class Grid:
             self.B_T = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
             self.omega = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
             self.OMEGA = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
-            self.nu = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
             if self.__use_p_e is True:
                 self.p_e = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
                 self.theta = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
@@ -301,6 +332,8 @@ class Grid:
         
     def update_J(self):
         dt = self.time_step
+        E_ave = average_E(self.E)
+
         if self.__compute_once is True:
             self.m_e = const.m_e * bd.sqrt(1 + 5 * abs(const.q_e) * self.T_e / (const.m_e * const.c ** 2) )
             self.OMEGA = const.q_e * self.B_T / self.m_e
@@ -309,15 +342,13 @@ class Grid:
             self.axis = self.OMEGA / self.theta * dt # to compute unit vector is OMEGA/|OMEGA| and theta is |OMEGA|dt
             self.__compute_once = False
             if self.frequency > 0:
-                self.permittivity=1 - (self.omega / (2*3.1416*self.frequency))**2 
+                self.permittivity=1 - (self.omega / (2*3.1416*self.frequency))**2 #should be relative permittivity to use in original code
                 self.inverse_permittivity = 1./self.permittivity
-                print(bd.max(self.permittivity).item())
-                print(bd.min(self.permittivity).item())
-        if self.frequency is 0:
+        if self.frequency == 0:
+            exp_fac = exp(-self.nu * dt  / 2)
             if self.__use_p_e is False:
-                exp_fac = bd.exp(-self.nu * dt  / 2)
                 self.J *= exp_fac
-                self.J += 0.5 * dt * const.eps0 * self.omega**2 * self.E
+                self.J += 0.5 * dt * const.eps0 * self.omega**2 * E_ave
                 
                 cos_t = bd.cos(self.theta)
                 sin_t = bd.sin(self.theta)
@@ -326,16 +357,14 @@ class Grid:
                 
                 self.J = self.J * cos_t + cross * sin_t + self.axis * axis_dot_J * (1 - cos_t)
                 
-                self.J += 0.5 * dt * const.eps0 * self.omega**2 * self.E
+                self.J += 0.5 * dt * const.eps0 * self.omega**2 * E_ave
                 self.J *= exp_fac
             else:         
-                exp_fac = bd.exp(-self.nu * dt  / 2)
-
                 # Half damping
                 self.p_e *= exp_fac
 
                 # Half electric kick
-                self.p_e += 0.5 * const.q_e * self.E * dt
+                self.p_e += 0.5 * const.q_e * E_ave * dt
                 
                 #Compute Rodrigues rotation
                 cos_t = bd.cos(self.theta)
@@ -346,7 +375,7 @@ class Grid:
                 self.p_e = self.p_e * cos_t + cross * sin_t + self.axis * axis_dot_p_e * (1 - cos_t)
 
                 # Half electric kick
-                self.p_e += 0.5 * const.q_e * self.E * dt
+                self.p_e += 0.5 * const.q_e * E_ave * dt
 
                 # Half damping
                 self.p_e *= exp_fac
@@ -363,7 +392,7 @@ class Grid:
         curl = curl_H(self.H)
         if self.plasma is True :
             self.update_J()
-            self.E += self.courant_number * self.inverse_permittivity * ( curl - self.J )
+            self.E +=  self.inverse_permittivity * ( self.courant_number * curl - self.time_step * self.J / const.eps0)
         else:
             self.E += self.courant_number * self.inverse_permittivity * curl
 

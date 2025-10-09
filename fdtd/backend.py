@@ -106,6 +106,9 @@ class NumpyBackend(Backend):
     # methods
     asarray = _replace_float(numpy.asarray)
 
+    copy = staticmethod(numpy.copy)
+    """ make a copy the array """
+
     sqrt = staticmethod(numpy.sqrt)
     """ squareroot of all elements in array """
 
@@ -231,6 +234,9 @@ if TORCH_AVAILABLE:
         # methods
         asarray = staticmethod(torch.as_tensor)
         """ create an array """
+
+        copy = staticmethod(torch.clone)
+        """ make a copy the array """
 
         sqrt = staticmethod(torch.sqrt)
         """ squareroot of all elements in array """

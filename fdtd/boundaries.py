@@ -417,6 +417,8 @@ class PML(Boundary):
             * self.grid.inverse_permittivity[self.loc]
             * self.phi_E
         )
+        # self.grid.J[self.loc]=0
+        # self.grid.p_e[self.loc]=0
 
     def update_H(self):
         """ Update magnetic field of the grid
