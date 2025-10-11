@@ -122,8 +122,6 @@ class Grid:
         
         self.__use_p_e = use_p_e
         
-        self.__compute_once = True
-        
         self.frequency=frequency
         
         # courant number of the simulation (optimal value)
@@ -298,20 +296,21 @@ class Grid:
         self.update_E()
         self.update_H()
         self.time_steps_passed += 1
+    
+    def compute_plasma_properties(self):
+        dt = self.time_step
+        self.m_e = const.m_e * bd.sqrt(1 + 5 * abs(const.q_e) * self.T_e / (const.m_e * const.c ** 2) )
+        self.OMEGA = const.q_e * self.B_T / self.m_e
+        self.omega = bd.sqrt( const.q_e **2 * self.n_e / (const.eps0 * self.m_e) )
+        self.theta = (bd.sqrt((self.OMEGA ** 2).sum(axis=-1, keepdims=True)) + 1e-15) * dt 
+        self.axis = self.OMEGA / self.theta * dt # to compute unit vector is OMEGA/|OMEGA| and theta is |OMEGA|dt
+        if self.frequency > 0:
+            self.permittivity=1 - (self.omega / (2*3.1416*self.frequency))**2 #should be relative permittivity to use in original code
+            self.inverse_permittivity = 1./self.permittivity
+        
         
     def update_J(self):
         dt = self.time_step
-
-        if self.__compute_once is True:
-            self.m_e = const.m_e * bd.sqrt(1 + 5 * abs(const.q_e) * self.T_e / (const.m_e * const.c ** 2) )
-            self.OMEGA = const.q_e * self.B_T / self.m_e
-            self.omega = bd.sqrt( const.q_e **2 * self.n_e / (const.eps0 * self.m_e) )
-            self.theta = (bd.sqrt((self.OMEGA ** 2).sum(axis=-1, keepdims=True)) + 1e-15) * dt 
-            self.axis = self.OMEGA / self.theta * dt # to compute unit vector is OMEGA/|OMEGA| and theta is |OMEGA|dt
-            self.__compute_once = False
-            if self.frequency > 0:
-                self.permittivity=1 - (self.omega / (2*3.1416*self.frequency))**2 #should be relative permittivity to use in original code
-                self.inverse_permittivity = 1./self.permittivity
         if self.frequency == 0:
             exp_fac = bd.exp(-self.nu * dt  / 2)
             if self.__use_p_e is False:
