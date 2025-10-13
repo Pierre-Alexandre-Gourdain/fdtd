@@ -333,7 +333,7 @@ class Grid:
                 # Half electric kick
                 self.p_e += 0.5 * const.q_e * self.E * dt
                 
-                #Compute Rodrigues rotation
+                # Compute Rodrigues rotation
                 cos_t = bd.cos(self.theta)
                 sin_t = bd.sin(self.theta)
                 axis_dot_p_e = (self.axis * self.p_e).sum(axis=-1, keepdims=True)

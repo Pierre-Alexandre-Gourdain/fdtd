@@ -236,7 +236,7 @@ class PML(Boundary):
         in the grid.
     """
 
-    def __init__(self, a: float = 1e-8, name: str = None):
+    def __init__(self, a: float = 1e-8, sigma = 50, name: str = None):
         """ Perfectly Matched Layer
 
         Args:
@@ -248,7 +248,7 @@ class PML(Boundary):
         # TODO: to make this a PML parameter, the *normal* curl equations need to be updated
         self.k = 1.0
         self.thickness = 0
-
+        self.__sigma_max = sigma
         self.a = a
 
     def _set_locations(self):
@@ -290,7 +290,7 @@ class PML(Boundary):
 
     def _sigma(self, vect: Tensorlike):
         """ create a cubicly increasing profile for the conductivity """
-        return 40 * vect ** 3 / (self.thickness + 1) ** 4
+        return self.__sigma_max * vect ** 3 / (self.thickness + 1) ** 4
 
     def _register_grid(
         self, grid: Grid, x: ListOrSlice, y: ListOrSlice, z: ListOrSlice
