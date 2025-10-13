@@ -28,6 +28,7 @@ The ``cuda`` backends are only available for computers with a GPU.
 
 # Numpy Backend
 import numpy  # numpy has to be present
+import scipy
 from functools import wraps
 
 # used only by test runner.
@@ -113,6 +114,15 @@ class NumpyBackend(Backend):
     """ squareroot of all elements in array """
 
     exp = staticmethod(numpy.exp)
+    """ exponential of all elements in array """
+
+    expm = staticmethod(scipy.linalg.expm)
+    """ exponential of all elements in array """
+
+    pinv = staticmethod(numpy.linalg.pinv)
+    """ exponential of all elements in array """
+
+    eye = staticmethod(numpy.eye)
     """ exponential of all elements in array """
 
     log = staticmethod(numpy.log)
@@ -244,6 +254,18 @@ if TORCH_AVAILABLE:
         exp = staticmethod(torch.exp)
         """ exponential of all elements in array """
 
+        expm = staticmethod(torch.linalg.matrix_exp)
+        """ exponential of all elements in array """
+
+        pinv = staticmethod(torch.linalg.pinv)
+        """ exponential of all elements in array """
+
+        matmul = staticmethod(torch.linalg.matmul)
+        """ exponential of all elements in array """
+
+        norm = staticmethod(torch.linalg.norm)
+        """ exponential of all elements in array """
+
         log = staticmethod(torch.log)
         """ logarithm of all elements in array """
 
@@ -350,6 +372,10 @@ if TORCH_AVAILABLE:
             def ones(self, shape, **kwargs):
                 """create an array filled with ones"""
                 return torch.ones(shape, device="cuda", **kwargs)
+
+            def eye(self, shape, **kwargs):
+                """create an array filled with ones"""
+                return torch.eye(shape, device="cuda", **kwargs)
 
             def zeros(self, shape, **kwargs):
                 """create an array filled with zeros"""
