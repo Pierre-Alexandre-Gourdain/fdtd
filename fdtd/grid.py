@@ -102,12 +102,12 @@ def divergence(E: Tensorlike) -> Tensorlike:
     divE[:, :, :-1, 0] += (E[:, :, 1:, 2] - E[:, :, :-1, 2])
 
     # --- Boundaries: one-sided differences ---
-    # x boundaries
-    divE[-1, :, :, 0] += (E[-1, :, :, 0])  # backward difference assuming E outside is 0
-    # y boundaries
-    divE[:, -1, :, 0] += (E[:, -1, :, 1])
-    # z boundaries
-    divE[:, :, -1, 0] += (E[:, :, -1, 2])
+    # # x boundaries
+    # divE[-1, :, :, 0] += (E[-1, :, :, 0])  # backward difference assuming E outside is 0
+    # # y boundaries
+    # divE[:, -1, :, 0] += (E[:, -1, :, 1])
+    # # z boundaries
+    # divE[:, :, -1, 0] += (E[:, :, -1, 2])
     
     return divE
     
@@ -136,12 +136,12 @@ def gradient(phi: Tensorlike) -> Tensorlike:
     grad[:, :, :-1, 2] = (phi[:, :, 1:, 0] - phi[:, :, :-1, 0])
 
     # --- Boundaries: one-sided differences ---
-    # x boundaries
-    grad[-1, :, :, 0] += (phi[-1, :, :, 0])  # backward difference assuming E outside is 0
-    # y boundaries
-    grad[:, -1, :, 1] += (phi[:, -1, :, 0])
-    # z boundaries
-    grad[:, :, -1, 2] += (phi[:, :, -1, 0])
+    # # x boundaries
+    # grad[-1, :, :, 0] += (phi[-1, :, :, 0])  # backward difference assuming E outside is 0
+    # # y boundaries
+    # grad[:, -1, :, 1] += (phi[:, -1, :, 0])
+    # # z boundaries
+    # grad[:, :, -1, 2] += (phi[:, :, -1, 0])
     
     return grad
     
@@ -416,6 +416,7 @@ class Grid:
         if self.frequency > 0:
             self.permittivity=1 - (self.omega / (2*3.1416*self.frequency))**2 #should be relative permittivity to use in original code
             self.inverse_permittivity = 1./self.permittivity
+            
         
         
     def update_J(self):
@@ -473,7 +474,7 @@ class Grid:
                 
                 # self.p_e *= exp_fac
                 # self.J= const.q_e * self.n_e * self.p_e / self.m_e
-            self.phi-=(const.c**2 * divergence(self.E)/self.grid_spacing  + 1e-3 * self.phi)*dt #Hyperbolic cleaning
+            # self.phi-=(const.c**2 * divergence(self.E)/self.grid_spacing  + 1e-2 * self.phi)*dt #Hyperbolic cleaning
 
     def update_E(self):
         """update the electric field by using the curl of the magnetic field"""
@@ -485,7 +486,9 @@ class Grid:
         curl = curl_H(self.H)
         if self.plasma is True :
             self.update_J()
-            self.E +=  self.inverse_permittivity * ( self.courant_number * curl - self.time_step * self.J / const.eps0) -1e-5*gradient(self.phi)/self.grid_spacing*self.time_step #- 100*gradient(divergence(self.E))/self.grid_spacing**2*self.time_step
+            #self.E +=  self.inverse_permittivity * ( self.courant_number * curl - self.time_step * self.J / const.eps0)
+            self.E +=  self.inverse_permittivity * ( self.courant_number * curl - self.time_step * self.J / const.eps0) - 5e2*gradient(divergence(self.E))/self.grid_spacing**2*self.time_step
+            # self.E +=  self.inverse_permittivity * ( self.courant_number * curl - self.time_step * self.J / const.eps0) - 1e-4*gradient(self.phi)/self.grid_spacing*self.time_step
         else:
             self.E += self.courant_number * self.inverse_permittivity * curl
 
