@@ -75,6 +75,112 @@ def curl_H(H: Tensorlike) -> Tensorlike:
 
     return curl
 
+import numpy as np  # or import torch as bd
+
+def divergence(E: Tensorlike) -> Tensorlike:
+    """
+    Compute the divergence of E on the H-grid (cell centers),
+    taking into account boundaries with one-sided differences.
+    
+    Parameters
+    ----------
+    E : array_like, shape (Nx, Ny, Nz, 3)
+        Electric field with Yee staggering (Ex, Ey, Ez on faces)
+    bd : module
+        Backend module, numpy or torch
+        
+    Returns
+    -------
+    divE : array, shape (Nx, Ny, Nz)
+        Cell-centered divergence of E
+    """
+    Nx, Ny, Nz, _ = E.shape
+    divE = bd.zeros((Nx, Ny, Nz, 1), dtype=E.dtype)
+    
+    divE[:-1, :, :, 0] += (E[1:, :, :, 0] - E[:-1, :, :, 0])
+    divE[:, :-1, :, 0] += (E[:, 1:, :, 1] - E[:, :-1, :, 1])
+    divE[:, :, :-1, 0] += (E[:, :, 1:, 2] - E[:, :, :-1, 2])
+
+    # --- Boundaries: one-sided differences ---
+    # x boundaries
+    divE[-1, :, :, 0] += (E[-1, :, :, 0])  # backward difference assuming E outside is 0
+    # y boundaries
+    divE[:, -1, :, 0] += (E[:, -1, :, 1])
+    # z boundaries
+    divE[:, :, -1, 0] += (E[:, :, -1, 2])
+    
+    return divE
+    
+def gradient(phi: Tensorlike) -> Tensorlike:
+    """
+    Compute the divergence of E on the H-grid (cell centers),
+    taking into account boundaries with one-sided differences.
+    
+    Parameters
+    ----------
+    E : array_like, shape (Nx, Ny, Nz, 3)
+        Electric field with Yee staggering (Ex, Ey, Ez on faces)
+    bd : module
+        Backend module, numpy or torch
+        
+    Returns
+    -------
+    divE : array, shape (Nx, Ny, Nz)
+        Cell-centered divergence of E
+    """
+    Nx, Ny, Nz, _ = phi.shape
+    grad = bd.zeros((Nx, Ny, Nz,3), dtype=phi.dtype)
+    
+    grad[:-1, :, :, 0] = (phi[1:, :, :, 0] - phi[:-1, :, :, 0])
+    grad[:, :-1, :, 1] = (phi[:, 1:, :, 0] - phi[:, :-1, :, 0])
+    grad[:, :, :-1, 2] = (phi[:, :, 1:, 0] - phi[:, :, :-1, 0])
+
+    # --- Boundaries: one-sided differences ---
+    # x boundaries
+    grad[-1, :, :, 0] += (phi[-1, :, :, 0])  # backward difference assuming E outside is 0
+    # y boundaries
+    grad[:, -1, :, 1] += (phi[:, -1, :, 0])
+    # z boundaries
+    grad[:, :, -1, 2] += (phi[:, :, -1, 0])
+    
+    return grad
+    
+def projection(field: Tensorlike) -> Tensorlike:
+    """
+    Project a vector field from H-grid (cell centers) to E-grid (faces) using averages.
+
+    Parameters
+    ----------
+    field : array_like, shape (Nx, Ny, Nz, 3)
+        Vector field defined at H-cells (cell centers)
+    bd : module
+        Backend (np or torch)
+
+    Returns
+    -------
+    field_ave : array
+        Field projected onto E-grid (face locations)
+        Last index: 0=x-face, 1=y-face, 2=z-face
+    """
+    field_ave = bd.zeros(field.shape, dtype=field.dtype)
+
+    # --- x-face ---
+    field_ave[1:-1, :, :, 0] = 0.5 * (field[1:-1, :, :, 0] + field[:-2, :, :, 0])
+    field_ave[0, :, :, 0] = field[0, :, :, 0]
+    field_ave[-1, :, :, 0] = field[-1, :, :, 0]
+
+    # --- y-face ---
+    field_ave[:, 1:-1, :, 1] = 0.5 * (field[:, 1:-1, :, 1] + field[:, :-2, :, 1])
+    field_ave[:, 0, :, 1] = field[:, 0, :, 1]
+    field_ave[:, -1, :, 1] = field[:, -1, :, 1]
+
+    # --- z-face ---
+    field_ave[:, :, 1:-1, 2] = 0.5 * (field[:, :, 1:-1, 2] + field[:, :, :-2, 2])
+    field_ave[:, :, 0, 2] = field[:, :, 0, 2]
+    field_ave[:, :, -1, 2] = field[:, :, -1, 2]
+
+    return field_ave
+    
 
 ## FDTD Grid Class
 class Grid:
@@ -152,6 +258,9 @@ class Grid:
             self.B_T = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
             self.omega = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
             self.OMEGA = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
+            self.J = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
+            self.phi = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
+            #self.phi = bd.zeros((self.Nx, self.Ny, self.Nz, 1))
             if self.__use_p_e is True:
                 self.p_e = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
                 self.theta = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
@@ -346,9 +455,8 @@ class Grid:
 
                 # Half damping
                 self.p_e *= exp_fac
-            
-                self.J= const.q_e * self.n_e * self.p_e / self.m_e
                 
+                self.J= const.q_e * self.n_e * self.p_e / self.m_e
                 
                 # self.p_e *= exp_fac
                 
@@ -365,7 +473,7 @@ class Grid:
                 
                 # self.p_e *= exp_fac
                 # self.J= const.q_e * self.n_e * self.p_e / self.m_e
-                
+            self.phi-=(const.c**2 * divergence(self.E)/self.grid_spacing  + 1e-3 * self.phi)*dt #Hyperbolic cleaning
 
     def update_E(self):
         """update the electric field by using the curl of the magnetic field"""
@@ -377,7 +485,7 @@ class Grid:
         curl = curl_H(self.H)
         if self.plasma is True :
             self.update_J()
-            self.E +=  self.inverse_permittivity * ( self.courant_number * curl - self.time_step * self.J / const.eps0)
+            self.E +=  self.inverse_permittivity * ( self.courant_number * curl - self.time_step * self.J / const.eps0) -1e-5*gradient(self.phi)/self.grid_spacing*self.time_step #- 100*gradient(divergence(self.E))/self.grid_spacing**2*self.time_step
         else:
             self.E += self.courant_number * self.inverse_permittivity * curl
 

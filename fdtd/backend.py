@@ -113,17 +113,17 @@ class NumpyBackend(Backend):
     sqrt = staticmethod(numpy.sqrt)
     """ squareroot of all elements in array """
 
+    abs = staticmethod(numpy.abs)
+    """ absolute valure of all elements in array """
+
     exp = staticmethod(numpy.exp)
     """ exponential of all elements in array """
 
     expm = staticmethod(scipy.linalg.expm)
-    """ exponential of all elements in array """
-
-    pinv = staticmethod(numpy.linalg.pinv)
-    """ exponential of all elements in array """
+    """ matrix of an array """
 
     eye = staticmethod(numpy.eye)
-    """ exponential of all elements in array """
+    """ I array """
 
     log = staticmethod(numpy.log)
     """ logarithm of all elements in array """
@@ -251,20 +251,20 @@ if TORCH_AVAILABLE:
         sqrt = staticmethod(torch.sqrt)
         """ squareroot of all elements in array """
 
+        abs = staticmethod(torch.abs)
+        """ absolute valure of all elements in array """
+
         exp = staticmethod(torch.exp)
         """ exponential of all elements in array """
 
         expm = staticmethod(torch.linalg.matrix_exp)
-        """ exponential of all elements in array """
-
-        pinv = staticmethod(torch.linalg.pinv)
-        """ exponential of all elements in array """
+        """ matrix exponential of all elements in array """
 
         matmul = staticmethod(torch.linalg.matmul)
-        """ exponential of all elements in array """
+        """ multiplcation of two arrays """
 
         norm = staticmethod(torch.linalg.norm)
-        """ exponential of all elements in array """
+        """ norm of array """
 
         log = staticmethod(torch.log)
         """ logarithm of all elements in array """
