@@ -268,6 +268,7 @@ class Grid:
             self.phi = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
             self.rho = bd.zeros((self.Nx, self.Ny, self.Nz, 1))
             self.phi = bd.zeros((self.Nx, self.Ny, self.Nz, 1))
+            self.sigma = bd.zeros((self.Nx, self.Ny, self.Nz, 1))
             if self.__use_p_e is True:
                 self.p_e = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
                 self.theta = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
@@ -484,6 +485,7 @@ class Grid:
                 # self.J= const.q_e * self.n_e * self.p_e / self.m_e
             self.rho-=divergence(self.J)*dt/self.grid_spacing
             
+            
 
     def update_E(self):
         """update the electric field by using the curl of the magnetic field"""
@@ -498,7 +500,9 @@ class Grid:
             #self.E +=  self.inverse_permittivity * ( self.courant_number * curl - self.time_step * self.J / const.eps0)
             # self.E +=  self.inverse_permittivity * ( self.courant_number * curl - self.time_step * self.J / const.eps0) - gradient(divergence(self.E)/self.grid_spacing-self.rho/const.eps0)/self.grid_spacing*self.time_step
             self.E +=  self.inverse_permittivity * ( self.courant_number * curl - self.time_step * self.J / const.eps0) - gradient(self.phi)/self.grid_spacing*self.time_step
-            self.phi-=(const.c**2 * (divergence(self.E)/self.grid_spacing-self.rho/const.eps0)  + const.c/self.grid_spacing * self.phi)*self.time_step #Hyperbolic cleaning
+            self.phi-=const.c**2 * (divergence(self.E)/self.grid_spacing-self.rho/const.eps0)*self.time_step 
+            self.phi-=const.c/self.grid_spacing * self.phi*self.time_step * (1+10*self.sigma)
+            # self.phi+=1e-2*const.c*self.grid_spacing*divergence(gradient(self.phi))*self.time_step#Hyperbolic cleaning
         else:
             self.E += self.courant_number * self.inverse_permittivity * curl
 

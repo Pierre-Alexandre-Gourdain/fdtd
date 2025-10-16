@@ -405,7 +405,8 @@ class PML(Boundary):
             * self.sigmaH  # is defined by _set_sigmaH()
             / (self.sigmaH * self.k + self.a * self.k ** 2)
         )
-
+        self.grid.sigma[self.loc]=bd.sqrt(self.grid.sigma[self.loc]**2+(self.sigmaE**2).sum(axis=-1,keepdims=True)/bd.max(self.sigmaE)**2)
+    
     def update_E(self):
         """ Update electric field of the grid
 
