@@ -97,9 +97,12 @@ def divergence(E: Tensorlike) -> Tensorlike:
     Nx, Ny, Nz, _ = E.shape
     divE = bd.zeros((Nx, Ny, Nz, 1), dtype=E.dtype)
     
-    divE[:-1, :, :, 0] += (E[1:, :, :, 0] - E[:-1, :, :, 0])
-    divE[:, :-1, :, 0] += (E[:, 1:, :, 1] - E[:, :-1, :, 1])
-    divE[:, :, :-1, 0] += (E[:, :, 1:, 2] - E[:, :, :-1, 2])
+    if (Nx>1):
+        divE[1:, :, :, 0] += E[1:, :, :, 0] - E[:-1, :, :, 0]
+    if (Ny>1):
+        divE[:, 1:, :, 0] += E[:, 1:, :, 1] - E[:, :-1, :, 1]
+    if (Nz>1):
+        divE[:, :, 1:, 0] += E[:, :, 1:, 2] - E[:, :, :-1, 2]
 
     # --- Boundaries: one-sided differences ---
     # # x boundaries
@@ -131,9 +134,12 @@ def gradient(phi: Tensorlike) -> Tensorlike:
     Nx, Ny, Nz, _ = phi.shape
     grad = bd.zeros((Nx, Ny, Nz,3), dtype=phi.dtype)
     
-    grad[:-1, :, :, 0] = (phi[1:, :, :, 0] - phi[:-1, :, :, 0])
-    grad[:, :-1, :, 1] = (phi[:, 1:, :, 0] - phi[:, :-1, :, 0])
-    grad[:, :, :-1, 2] = (phi[:, :, 1:, 0] - phi[:, :, :-1, 0])
+    if (Nx>1):
+        grad[:-1, :, :, 0] = phi[1:, :, :, 0] - phi[:-1, :, :, 0]
+    if (Ny>1):
+        grad[:, :-1, :, 1] = phi[:, 1:, :, 0] - phi[:, :-1, :, 0]
+    if (Nz>1):
+        grad[:, :, :-1, 2] = phi[:, :, 1:, 0] - phi[:, :, :-1, 0]
 
     # --- Boundaries: one-sided differences ---
     # # x boundaries
@@ -260,7 +266,8 @@ class Grid:
             self.OMEGA = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
             self.J = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
             self.phi = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
-            #self.phi = bd.zeros((self.Nx, self.Ny, self.Nz, 1))
+            self.rho = bd.zeros((self.Nx, self.Ny, self.Nz, 1))
+            self.phi = bd.zeros((self.Nx, self.Ny, self.Nz, 1))
             if self.__use_p_e is True:
                 self.p_e = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
                 self.theta = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
@@ -458,6 +465,7 @@ class Grid:
                 self.p_e *= exp_fac
                 
                 self.J= const.q_e * self.n_e * self.p_e / self.m_e
+            
                 
                 # self.p_e *= exp_fac
                 
@@ -474,7 +482,8 @@ class Grid:
                 
                 # self.p_e *= exp_fac
                 # self.J= const.q_e * self.n_e * self.p_e / self.m_e
-            # self.phi-=(const.c**2 * divergence(self.E)/self.grid_spacing  + 1e-2 * self.phi)*dt #Hyperbolic cleaning
+            self.rho-=divergence(self.J)*dt/self.grid_spacing
+            
 
     def update_E(self):
         """update the electric field by using the curl of the magnetic field"""
@@ -487,8 +496,9 @@ class Grid:
         if self.plasma is True :
             self.update_J()
             #self.E +=  self.inverse_permittivity * ( self.courant_number * curl - self.time_step * self.J / const.eps0)
-            self.E +=  self.inverse_permittivity * ( self.courant_number * curl - self.time_step * self.J / const.eps0) - 5e2*gradient(divergence(self.E))/self.grid_spacing**2*self.time_step
-            # self.E +=  self.inverse_permittivity * ( self.courant_number * curl - self.time_step * self.J / const.eps0) - 1e-4*gradient(self.phi)/self.grid_spacing*self.time_step
+            # self.E +=  self.inverse_permittivity * ( self.courant_number * curl - self.time_step * self.J / const.eps0) - gradient(divergence(self.E)/self.grid_spacing-self.rho/const.eps0)/self.grid_spacing*self.time_step
+            self.E +=  self.inverse_permittivity * ( self.courant_number * curl - self.time_step * self.J / const.eps0) - gradient(self.phi)/self.grid_spacing*self.time_step
+            self.phi-=(const.c**2 * (divergence(self.E)/self.grid_spacing-self.rho/const.eps0)  + const.c/self.grid_spacing * self.phi)*self.time_step #Hyperbolic cleaning
         else:
             self.E += self.courant_number * self.inverse_permittivity * curl
 
