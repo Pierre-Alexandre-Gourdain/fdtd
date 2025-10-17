@@ -405,7 +405,7 @@ class PML(Boundary):
             * self.sigmaH  # is defined by _set_sigmaH()
             / (self.sigmaH * self.k + self.a * self.k ** 2)
         )
-        self.grid.sigma[self.loc]=bd.sqrt(self.grid.sigma[self.loc]**2+(self.sigmaE**2).sum(axis=-1,keepdims=True)/bd.max(self.sigmaE)**2)
+        # self.grid.sigma[self.loc]=bd.sqrt(self.grid.sigma[self.loc]**2+(self.sigmaE**2).sum(axis=-1,keepdims=True)/bd.max(self.sigmaE)**2)
     
     def update_E(self):
         """ Update electric field of the grid
@@ -419,9 +419,10 @@ class PML(Boundary):
             * self.phi_E
         )
         self.grid.J[self.loc]=0
-        self.grid.p_e[self.loc]=0
+        if self.grid._use_p_e is True :
+            self.grid.p_e[self.loc]=0
         self.grid.rho[self.loc]=0
-        self.grid.phi[self.loc]=0
+        self.grid.psi[self.loc]=0
 
     def update_H(self):
         """ Update magnetic field of the grid

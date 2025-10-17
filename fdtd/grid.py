@@ -232,7 +232,7 @@ class Grid:
         
         self.plasma = plasma
         
-        self.__use_p_e = use_p_e
+        self._use_p_e = use_p_e
         
         self.frequency=frequency
         
@@ -265,11 +265,11 @@ class Grid:
             self.omega = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
             self.OMEGA = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
             self.J = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
-            self.phi = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
+            self.psi = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
             self.rho = bd.zeros((self.Nx, self.Ny, self.Nz, 1))
-            self.phi = bd.zeros((self.Nx, self.Ny, self.Nz, 1))
-            self.sigma = bd.zeros((self.Nx, self.Ny, self.Nz, 1))
-            if self.__use_p_e is True:
+            self.psi = bd.zeros((self.Nx, self.Ny, self.Nz, 1))
+            # self.sigma = bd.zeros((self.Nx, self.Ny, self.Nz, 1))
+            if self._use_p_e is True:
                 self.p_e = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
                 self.theta = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
                 self.axis = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
@@ -431,7 +431,7 @@ class Grid:
         dt = self.time_step
         if self.frequency == 0:
             exp_fac = bd.exp(-self.nu * dt  / 2)
-            if self.__use_p_e is False:
+            if self._use_p_e is False:
                 self.J *= exp_fac
                 self.J += 0.5 * dt * const.eps0 * self.omega**2 * self.E
                 
@@ -466,23 +466,7 @@ class Grid:
                 self.p_e *= exp_fac
                 
                 self.J= const.q_e * self.n_e * self.p_e / self.m_e
-            
-                
-                # self.p_e *= exp_fac
-                
-                # p_par = (self.axis*self.p_e).sum(axis=-1, keepdims=True)
-                # p_per = self.p_e - p_par * self.axis
-                # E_par = (self.axis*self.E).sum(axis=-1, keepdims=True)
-                # E_per = self.E - E_par * self.axis
-                # cos_t = bd.cos(self.theta)
-                # sin_t = bd.sin(self.theta)
-                # cross_p = bd.cross(self.axis, self.p_e, axis = -1)
-                # cross_E = bd.cross(self.axis, self.E, axis = -1)
-                # self.p_e=p_par  + p_per*cos_t - cross_p*sin_t 
-                # self.p_e += const.q_e*E_par*dt + const.q_e/self.theta*dt*(E_per*sin_t + cross_E*(1-cos_t) )
-                
-                # self.p_e *= exp_fac
-                # self.J= const.q_e * self.n_e * self.p_e / self.m_e
+ 
             self.rho-=divergence(self.J)*dt/self.grid_spacing
             
             
@@ -497,12 +481,10 @@ class Grid:
         curl = curl_H(self.H)
         if self.plasma is True :
             self.update_J()
-            #self.E +=  self.inverse_permittivity * ( self.courant_number * curl - self.time_step * self.J / const.eps0)
-            # self.E +=  self.inverse_permittivity * ( self.courant_number * curl - self.time_step * self.J / const.eps0) - gradient(divergence(self.E)/self.grid_spacing-self.rho/const.eps0)/self.grid_spacing*self.time_step
-            self.E +=  self.inverse_permittivity * ( self.courant_number * curl - self.time_step * self.J / const.eps0) - gradient(self.phi)/self.grid_spacing*self.time_step
-            self.phi-=const.c**2 * (divergence(self.E)/self.grid_spacing-self.rho/const.eps0)*self.time_step 
-            self.phi-=const.c/self.grid_spacing * self.phi*self.time_step * (1+10*self.sigma)
-            # self.phi+=1e-2*const.c*self.grid_spacing*divergence(gradient(self.phi))*self.time_step#Hyperbolic cleaning
+            self.E +=  self.inverse_permittivity * ( self.courant_number * curl - self.time_step * self.J / const.eps0) - gradient(self.psi)/self.grid_spacing*self.time_step
+            self.psi-=const.c**2 * (divergence(self.E)/self.grid_spacing-self.rho/const.eps0)*self.time_step 
+            self.psi-=const.c/self.grid_spacing * self.psi*self.time_step #Hyperbolic cleaning
+            # self.psi+=const.c*self.grid_spacing*divergence(gradient(self.psi))*self.time_step #Parabolic cleaning
         else:
             self.E += self.courant_number * self.inverse_permittivity * curl
 
