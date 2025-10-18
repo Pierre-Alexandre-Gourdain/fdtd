@@ -77,22 +77,19 @@ def curl_H(H: Tensorlike) -> Tensorlike:
 
 import numpy as np  # or import torch as bd
 
-def divergence(E: Tensorlike) -> Tensorlike:
+def div_E(E: Tensorlike) -> Tensorlike:
     """
-    Compute the divergence of E on the H-grid (cell centers),
-    taking into account boundaries with one-sided differences.
-    
+    Compute the divergence of an edge-centered E-field or face-centered H-field on a Yee grid.
+
     Parameters
     ----------
     E : array_like, shape (Nx, Ny, Nz, 3)
-        Electric field with Yee staggering (Ex, Ey, Ez on faces)
-    bd : module
-        Backend module, numpy or torch
+        Electric field components (Ex, Ey, Ez) located on edges.
         
     Returns
     -------
-    divE : array, shape (Nx, Ny, Nz)
-        Cell-centered divergence of E
+    divE : array, shape (Nx, Ny, Nz, 1)
+        Cell-centered divergence of E.
     """
     Nx, Ny, Nz, _ = E.shape
     divE = bd.zeros((Nx, Ny, Nz, 1), dtype=E.dtype)
@@ -114,32 +111,97 @@ def divergence(E: Tensorlike) -> Tensorlike:
     
     return divE
     
-def gradient(phi: Tensorlike) -> Tensorlike:
+def grad_E(psi: Tensorlike) -> Tensorlike:
     """
-    Compute the divergence of E on the H-grid (cell centers),
-    taking into account boundaries with one-sided differences.
-    
+    Compute the gradient of a cell-centered scalar phi on a Yee grid.
+
     Parameters
     ----------
-    E : array_like, shape (Nx, Ny, Nz, 3)
-        Electric field with Yee staggering (Ex, Ey, Ez on faces)
-    bd : module
-        Backend module, numpy or torch
+    phi : array_like, shape (Nx, Ny, Nz, 1)
+        Scalar potential located at cell centers.
         
     Returns
     -------
-    divE : array, shape (Nx, Ny, Nz)
-        Cell-centered divergence of E
+    grad : array, shape (Nx, Ny, Nz, 3)
+        Edge-centered gradient of psi, matching E-field locations.
+    """
+    Nx, Ny, Nz, _ = psi.shape
+    grad = bd.zeros((Nx, Ny, Nz,3), dtype=psi.dtype)
+    
+    if (Nx>1):
+        grad[:-1, :, :, 0] = psi[1:, :, :, 0] - psi[:-1, :, :, 0]
+    if (Ny>1):
+        grad[:, :-1, :, 1] = psi[:, 1:, :, 0] - psi[:, :-1, :, 0]
+    if (Nz>1):
+        grad[:, :, :-1, 2] = psi[:, :, 1:, 0] - psi[:, :, :-1, 0]
+
+    # --- Boundaries: one-sided differences ---
+    # # x boundaries
+    # grad[-1, :, :, 0] += (psi[-1, :, :, 0])  # backward difference assuming E outside is 0
+    # # y boundaries
+    # grad[:, -1, :, 1] += (psi[:, -1, :, 0])
+    # # z boundaries
+    # grad[:, :, -1, 2] += (psi[:, :, -1, 0])
+    
+    return grad
+    
+def div_H(H: Tensorlike) -> Tensorlike:
+    """
+    Compute the divergence of an face-centered H-field on a Yee grid.
+
+    Parameters
+    ----------
+    H : array_like, shape (Nx, Ny, Nz, 3)
+        Magnetic field components (Hx, Hy, Hz) located on edges.
+        
+    Returns
+    -------
+    divH : array, shape (Nx, Ny, Nz, 1)
+        Cell-centered divergence of H.
+    """
+    Nx, Ny, Nz, _ = H.shape
+    divH = bd.zeros((Nx, Ny, Nz, 1), dtype=H.dtype)
+    
+    if (Nx>1):
+        divH[:-1, :, :, 0] += H[1:, :, :, 0] - H[:-1, :, :, 0]
+    if (Ny>1):
+        divH[:, :-1, :, 0] += H[:, 1:, :, 1] - H[:, :-1, :, 1]
+    if (Nz>1):
+        divH[:, :, :-1, 0] += H[:, :, 1:, 2] - H[:, :, :-1, 2]
+
+    # --- Boundaries: one-sided differences ---
+    # # x boundaries
+    # divE[-1, :, :, 0] += (E[-1, :, :, 0])  # backward difference assuming E outside is 0
+    # # y boundaries
+    # divE[:, -1, :, 0] += (E[:, -1, :, 1])
+    # # z boundaries
+    # divE[:, :, -1, 0] += (E[:, :, -1, 2])
+    
+    return divH
+    
+def grad_H(phi: Tensorlike) -> Tensorlike:
+    """
+    Compute the gradient of a cell-centered scalar phi on a Yee grid.
+
+    Parameters
+    ----------
+    phi : array_like, shape (Nx, Ny, Nz, 1)
+        Scalar potential located at cell centers.
+        
+    Returns
+    -------
+    grad : array, shape (Nx, Ny, Nz, 3)
+        Edge-centered gradient of phi, matching E-field locations.
     """
     Nx, Ny, Nz, _ = phi.shape
     grad = bd.zeros((Nx, Ny, Nz,3), dtype=phi.dtype)
     
     if (Nx>1):
-        grad[:-1, :, :, 0] = phi[1:, :, :, 0] - phi[:-1, :, :, 0]
+        grad[1:, :, :, 0] = phi[1:, :, :, 0] - phi[:-1, :, :, 0]
     if (Ny>1):
-        grad[:, :-1, :, 1] = phi[:, 1:, :, 0] - phi[:, :-1, :, 0]
+        grad[:, 1:, :, 1] = phi[:, 1:, :, 0] - phi[:, :-1, :, 0]
     if (Nz>1):
-        grad[:, :, :-1, 2] = phi[:, :, 1:, 0] - phi[:, :, :-1, 0]
+        grad[:, :, 1:, 2] = phi[:, :, 1:, 0] - phi[:, :, :-1, 0]
 
     # --- Boundaries: one-sided differences ---
     # # x boundaries
@@ -150,8 +212,8 @@ def gradient(phi: Tensorlike) -> Tensorlike:
     # grad[:, :, -1, 2] += (phi[:, :, -1, 0])
     
     return grad
-    
-def projection(field: Tensorlike) -> Tensorlike:
+
+def average(field: Tensorlike) -> Tensorlike:
     """
     Project a vector field from H-grid (cell centers) to E-grid (faces) using averages.
 
@@ -268,6 +330,7 @@ class Grid:
             self.psi = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
             self.rho = bd.zeros((self.Nx, self.Ny, self.Nz, 1))
             self.psi = bd.zeros((self.Nx, self.Ny, self.Nz, 1))
+            # self.phi = bd.zeros((self.Nx, self.Ny, self.Nz, 1))
             # self.sigma = bd.zeros((self.Nx, self.Ny, self.Nz, 1))
             if self._use_p_e is True:
                 self.p_e = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
@@ -467,7 +530,7 @@ class Grid:
                 
                 self.J= const.q_e * self.n_e * self.p_e / self.m_e
  
-            self.rho-=divergence(self.J)*dt/self.grid_spacing
+            self.rho-=div_E(self.J)*dt/self.grid_spacing
             
             
 
@@ -481,8 +544,8 @@ class Grid:
         curl = curl_H(self.H)
         if self.plasma is True :
             self.update_J()
-            self.E +=  self.inverse_permittivity * ( self.courant_number * curl - self.time_step * self.J / const.eps0) - gradient(self.psi)/self.grid_spacing*self.time_step
-            self.psi-=const.c**2 * (divergence(self.E)/self.grid_spacing-self.rho/const.eps0)*self.time_step 
+            self.E +=  self.inverse_permittivity * ( self.courant_number * curl - self.time_step * self.J / const.eps0) - grad_E(self.psi)/self.grid_spacing*self.time_step
+            self.psi-=const.c**2 * (div_E(self.E)/self.grid_spacing-self.rho/const.eps0)*self.time_step 
             self.psi-=const.c/self.grid_spacing * self.psi*self.time_step #Hyperbolic cleaning
             # self.psi+=const.c*self.grid_spacing*divergence(gradient(self.psi))*self.time_step #Parabolic cleaning
         else:
@@ -512,7 +575,10 @@ class Grid:
             boundary.update_phi_H()
 
         curl = curl_E(self.E)
-        self.H -= self.courant_number * self.inverse_permeability * curl
+        self.H -= self.courant_number * self.inverse_permeability * curl 
+        # self.H -= self.courant_number * self.inverse_permeability * curl + grad_H(self.phi)/self.grid_spacing*self.time_step
+        # self.phi-=const.c**2 * (div_H(self.H)/self.grid_spacing)*self.time_step 
+        # self.phi-=const.c/self.grid_spacing * self.phi*self.time_step #Hyperbolic cleaning
 
         # update objects
         for obj in self.objects:

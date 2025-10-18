@@ -423,6 +423,7 @@ class PML(Boundary):
             self.grid.p_e[self.loc]=0
         self.grid.rho[self.loc]=0
         self.grid.psi[self.loc]=0
+        # self.grid.phi[self.loc]=0
 
     def update_H(self):
         """ Update magnetic field of the grid
