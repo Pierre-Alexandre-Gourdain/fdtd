@@ -101,19 +101,11 @@ def div_E(E: Tensorlike) -> Tensorlike:
     if (Nz>1):
         divE[:, :, 1:, 0] += E[:, :, 1:, 2] - E[:, :, :-1, 2]
 
-    # --- Boundaries: one-sided differences ---
-    # # x boundaries
-    # divE[-1, :, :, 0] += (E[-1, :, :, 0])  # backward difference assuming E outside is 0
-    # # y boundaries
-    # divE[:, -1, :, 0] += (E[:, -1, :, 1])
-    # # z boundaries
-    # divE[:, :, -1, 0] += (E[:, :, -1, 2])
-    
     return divE
     
-def grad_E(psi: Tensorlike) -> Tensorlike:
+def grad_E(phi: Tensorlike) -> Tensorlike:
     """
-    Compute the gradient of a cell-centered scalar phi on a Yee grid.
+    Compute the gradient of a cell-centered scalar psi on a Yee grid.
 
     Parameters
     ----------
@@ -123,26 +115,18 @@ def grad_E(psi: Tensorlike) -> Tensorlike:
     Returns
     -------
     grad : array, shape (Nx, Ny, Nz, 3)
-        Edge-centered gradient of psi, matching E-field locations.
+        Edge-centered gradient of phi, matching E-field locations.
     """
-    Nx, Ny, Nz, _ = psi.shape
-    grad = bd.zeros((Nx, Ny, Nz,3), dtype=psi.dtype)
+    Nx, Ny, Nz, _ = phi.shape
+    grad = bd.zeros((Nx, Ny, Nz,3), dtype=phi.dtype)
     
     if (Nx>1):
-        grad[:-1, :, :, 0] = psi[1:, :, :, 0] - psi[:-1, :, :, 0]
+        grad[:-1, :, :, 0] = phi[1:, :, :, 0] - phi[:-1, :, :, 0]
     if (Ny>1):
-        grad[:, :-1, :, 1] = psi[:, 1:, :, 0] - psi[:, :-1, :, 0]
+        grad[:, :-1, :, 1] = phi[:, 1:, :, 0] - phi[:, :-1, :, 0]
     if (Nz>1):
-        grad[:, :, :-1, 2] = psi[:, :, 1:, 0] - psi[:, :, :-1, 0]
+        grad[:, :, :-1, 2] = phi[:, :, 1:, 0] - phi[:, :, :-1, 0]
 
-    # --- Boundaries: one-sided differences ---
-    # # x boundaries
-    # grad[-1, :, :, 0] += (psi[-1, :, :, 0])  # backward difference assuming E outside is 0
-    # # y boundaries
-    # grad[:, -1, :, 1] += (psi[:, -1, :, 0])
-    # # z boundaries
-    # grad[:, :, -1, 2] += (psi[:, :, -1, 0])
-    
     return grad
     
 def div_H(H: Tensorlike) -> Tensorlike:
@@ -169,47 +153,33 @@ def div_H(H: Tensorlike) -> Tensorlike:
     if (Nz>1):
         divH[:, :, :-1, 0] += H[:, :, 1:, 2] - H[:, :, :-1, 2]
 
-    # --- Boundaries: one-sided differences ---
-    # # x boundaries
-    # divE[-1, :, :, 0] += (E[-1, :, :, 0])  # backward difference assuming E outside is 0
-    # # y boundaries
-    # divE[:, -1, :, 0] += (E[:, -1, :, 1])
-    # # z boundaries
-    # divE[:, :, -1, 0] += (E[:, :, -1, 2])
     
     return divH
     
-def grad_H(phi: Tensorlike) -> Tensorlike:
+def grad_H(psi: Tensorlike) -> Tensorlike:
     """
-    Compute the gradient of a cell-centered scalar phi on a Yee grid.
+    Compute the gradient of a cell-centered scalar psi on a Yee grid.
 
     Parameters
     ----------
-    phi : array_like, shape (Nx, Ny, Nz, 1)
+    psi : array_like, shape (Nx, Ny, Nz, 1)
         Scalar potential located at cell centers.
         
     Returns
     -------
     grad : array, shape (Nx, Ny, Nz, 3)
-        Edge-centered gradient of phi, matching E-field locations.
+        Edge-centered gradient of psi, matching E-field locations.
     """
-    Nx, Ny, Nz, _ = phi.shape
-    grad = bd.zeros((Nx, Ny, Nz,3), dtype=phi.dtype)
+    Nx, Ny, Nz, _ = psi.shape
+    grad = bd.zeros((Nx, Ny, Nz,3), dtype=psi.dtype)
     
     if (Nx>1):
-        grad[1:, :, :, 0] = phi[1:, :, :, 0] - phi[:-1, :, :, 0]
+        grad[1:, :, :, 0] = psi[1:, :, :, 0] - psi[:-1, :, :, 0]
     if (Ny>1):
-        grad[:, 1:, :, 1] = phi[:, 1:, :, 0] - phi[:, :-1, :, 0]
+        grad[:, 1:, :, 1] = psi[:, 1:, :, 0] - psi[:, :-1, :, 0]
     if (Nz>1):
-        grad[:, :, 1:, 2] = phi[:, :, 1:, 0] - phi[:, :, :-1, 0]
+        grad[:, :, 1:, 2] = psi[:, :, 1:, 0] - psi[:, :, :-1, 0]
 
-    # --- Boundaries: one-sided differences ---
-    # # x boundaries
-    # grad[-1, :, :, 0] += (phi[-1, :, :, 0])  # backward difference assuming E outside is 0
-    # # y boundaries
-    # grad[:, -1, :, 1] += (phi[:, -1, :, 0])
-    # # z boundaries
-    # grad[:, :, -1, 2] += (phi[:, :, -1, 0])
     
     return grad
 
@@ -327,10 +297,10 @@ class Grid:
             self.omega = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
             self.OMEGA = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
             self.J = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
-            self.psi = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
+            self.phi = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
             self.rho = bd.zeros((self.Nx, self.Ny, self.Nz, 1))
-            self.psi = bd.zeros((self.Nx, self.Ny, self.Nz, 1))
-            # self.phi = bd.zeros((self.Nx, self.Ny, self.Nz, 1))
+            self.phi = bd.zeros((self.Nx, self.Ny, self.Nz, 1))
+            # self.psi = bd.zeros((self.Nx, self.Ny, self.Nz, 1))
             # self.sigma = bd.zeros((self.Nx, self.Ny, self.Nz, 1))
             if self._use_p_e is True:
                 self.p_e = bd.zeros((self.Nx, self.Ny, self.Nz, 3))
@@ -544,10 +514,10 @@ class Grid:
         curl = curl_H(self.H)
         if self.plasma is True :
             self.update_J()
-            self.E +=  self.inverse_permittivity * ( self.courant_number * curl - self.time_step * self.J / const.eps0) - grad_E(self.psi)/self.grid_spacing*self.time_step
-            self.psi-=const.c**2 * (div_E(self.E)/self.grid_spacing-self.rho/const.eps0)*self.time_step 
-            self.psi-=const.c/self.grid_spacing * self.psi*self.time_step #Hyperbolic cleaning
-            # self.psi+=const.c*self.grid_spacing*divergence(gradient(self.psi))*self.time_step #Parabolic cleaning
+            self.E +=  self.inverse_permittivity * ( self.courant_number * curl - self.time_step * self.J / const.eps0) - grad_E(self.phi)/self.grid_spacing*self.time_step
+            self.phi-=const.c**2 * (div_E(self.E)/self.grid_spacing-self.rho/const.eps0)*self.time_step 
+            self.phi-=const.c/self.grid_spacing * self.phi*self.time_step #Hyperbolic cleaning
+            # self.phi+=const.c*self.grid_spacing*divergence(gradient(self.phi))*self.time_step #Parabolic cleaning
         else:
             self.E += self.courant_number * self.inverse_permittivity * curl
 
@@ -576,9 +546,9 @@ class Grid:
 
         curl = curl_E(self.E)
         self.H -= self.courant_number * self.inverse_permeability * curl 
-        # self.H -= self.courant_number * self.inverse_permeability * curl + grad_H(self.phi)/self.grid_spacing*self.time_step
-        # self.phi-=const.c**2 * (div_H(self.H)/self.grid_spacing)*self.time_step 
-        # self.phi-=const.c/self.grid_spacing * self.phi*self.time_step #Hyperbolic cleaning
+        # self.H -= self.courant_number * self.inverse_permeability * curl + grad_H(self.psi)/self.grid_spacing*self.time_step
+        # self.psi-=const.c**2 * (div_H(self.H)/self.grid_spacing)*self.time_step 
+        # self.psi-=const.c/self.grid_spacing * self.psi*self.time_step #Hyperbolic cleaning
 
         # update objects
         for obj in self.objects:
